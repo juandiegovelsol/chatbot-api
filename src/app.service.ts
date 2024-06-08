@@ -27,7 +27,6 @@ export class AppService {
     this.openai = new OpenAI({
       organization: this.configService.get<string>('OPENAI_ORG_ID'),
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
-      project: this.configService.get<string>('OPENAI_PRY_ID'),
     });
     this.loadProducts();
   }
@@ -64,49 +63,14 @@ export class AppService {
     const response = await axios.get(
       `https://openexchangerates.org/api/latest.json?app_id=${apiKey}`,
     );
-    console.log('Concurrency response!! ', response);
     const rates = response.data.rates;
     const convertedAmount = amount * (rates[to] / rates[from]);
-    console.log('Converted amount:', convertedAmount);
     return convertedAmount;
   }
 
   public async handleChat(query: string): Promise<string> {
     console.log('Handling chat query:', query);
     try {
-      /* const tools = [
-        {
-          type: 'function',
-          function: {
-            name: 'searchProducts',
-            description: 'Search for products',
-            parameters: {
-              type: 'object',
-              properties: {
-                query: { type: 'string' },
-              },
-              required: ['query'],
-            },
-          },
-        },
-        {
-          type: 'function',
-          function: {
-            name: 'convertCurrencies',
-            description: 'Convert currency',
-            parameters: {
-              type: 'object',
-              properties: {
-                amount: { type: 'number' },
-                from: { type: 'string' },
-                to: { type: 'string' },
-              },
-              required: ['amount', 'from', 'to'],
-            },
-          },
-        },
-      ]; */
-
       const response = await this.openai.chat.completions.create({
         model: 'gpt-3.5-turbo-0613',
         messages: [{ role: 'user', content: query }],
@@ -144,25 +108,42 @@ export class AppService {
         ],
         tool_choice: 'auto',
       });
-      console.log('GPT response', response);
       const toolCall = response.choices[0]?.message?.tool_calls?.[0];
       const functionName = toolCall?.function.name;
       const args = JSON.parse(toolCall.function.arguments || '{}');
       console.log('Function arguments:', args);
-      /* const functionName = 'convertCurrencies';
-      const args = { amount: 50, from: 'USD', to: 'COP' }; */
       if (functionName === 'searchProducts') {
         const products = await this.searchProducts(args.query);
         console.log('Products found:', products);
-        return `Found products: ${JSON.stringify(products)}`;
+        //Make other request for the final message;
+        const response = await this.openai.chat.completions.create({
+          model: 'gpt-3.5-turbo-0613',
+          messages: [
+            { role: 'user', content: query },
+            {
+              role: 'user',
+              content: `Generate an apropiate answer for user query: ${query}, with the following product information: ${JSON.stringify(products)}`,
+            },
+          ],
+        });
+        return response.choices[0].message.content;
       } else if (functionName === 'convertCurrencies') {
         const convertedAmount = await this.convertCurrency(
           args.amount,
           args.from,
           args.to,
         );
-        console.log('Converted amount:', convertedAmount);
-        return `Converted amount: ${convertedAmount} ${args.to}`;
+        const response = await this.openai.chat.completions.create({
+          model: 'gpt-3.5-turbo-0613',
+          messages: [
+            { role: 'user', content: query },
+            {
+              role: 'user',
+              content: `Generate an apropiate answer for user query: ${query}, with the following currency information: Initial amount ${args.amount}, converted from ${args.from} to ${args.to}, converted amount ${convertedAmount}`,
+            },
+          ],
+        });
+        return response.choices[0].message.content;
       } else {
         console.log('Response content:', response.choices[0].message.content);
         return response.choices[0].message.content;
