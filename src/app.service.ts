@@ -84,7 +84,7 @@ export class AppService {
       },
       {
         role: 'user',
-        content: `${query}, when asked for products select one article in a single word to shop from the store you believe fits my requirements, when asked for converting currencies do not suggest a product`,
+        content: `This is the user request: "${query}". When asked for a product recommendation, select exactly one article using a single word in singular form (e.g., "watch" instead of "watches") to search in the data store. When asked for converting currencies, do not suggest a product.`,
       },
     ];
     // Define the tools for product search and currency conversion
@@ -143,7 +143,7 @@ export class AppService {
         const products = await this.searchProducts(args.query);
         this.messages.push({
           role: 'system',
-          content: `You excecuted tool ${functionName} and found product information: ${JSON.stringify(products)}. You must choose between generating an apropiate final answer (without mentioning anything about currencies) and to excecute the convertCurrencies tool. Select between this two options acording to the user needs expressed in query: ${query}. If you are not asked to convert the price to another currency DON'T DO IT`,
+          content: `You executed the tool ${functionName} and found the following product information: ${JSON.stringify(products)}. Based on the user's query: "${query}", follow this rules to generate your answer: 1. If the user asks to know the product price in another currency different than USD, then execute the convertCurrencies tool. 2. If the user query is related to product recommendations or searches, provide an appropriate final answer based on the product information without mentioning currency conversion. Execute the convertCurrencies tool when the user requests the product price in a different currency that USD.`,
         });
         // Request a completion from OpenAI with the updated messages
         const response = await this.openai.chat.completions.create({
