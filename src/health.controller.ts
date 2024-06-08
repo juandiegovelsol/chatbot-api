@@ -1,10 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
-
+//Endpoint for checking server health
 @Controller('health')
 export class HealthController {
   @Get()
   check() {
-    console.log('Health!!');
     return 'API is healthy';
   }
 }

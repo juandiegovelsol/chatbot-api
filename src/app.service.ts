@@ -23,19 +23,20 @@ interface Product {
 
 @Injectable()
 export class AppService {
-  private openai: OpenAI;
-  private products: Product[] = [];
-  private messages: ChatCompletionMessageParam[] = [];
-  private tools: ChatCompletionTool[] = [];
+  private openai: OpenAI; // OpenAI client instance
+  private products: Product[] = []; // Array to store product data
+  private messages: ChatCompletionMessageParam[] = []; // Array to store chat messages
+  private tools: ChatCompletionTool[] = []; // Array to store tool configurations
 
   constructor(private configService: ConfigService) {
     this.openai = new OpenAI({
       organization: this.configService.get<string>('OPENAI_ORG_ID'),
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
-    });
-    this.loadProducts();
+    }); // Initialize OpenAI client with configuration
+    this.loadProducts(); // Load products from CSV file
   }
 
+  // Load products from a CSV file and store them in the products array
   private loadProducts() {
     const products: Product[] = [];
     fs.createReadStream('./products_list.csv')
@@ -48,6 +49,7 @@ export class AppService {
       });
   }
 
+  // Search for products based on the query
   private async searchProducts(query: string): Promise<Product[]> {
     const relatedProducts = this.products.filter(
       (product) =>
@@ -57,6 +59,7 @@ export class AppService {
     return relatedProducts.slice(0, 2);
   }
 
+  // Convert currency from one to another
   private async convertCurrency(
     amount: number,
     from: string,
@@ -71,7 +74,9 @@ export class AppService {
     return convertedAmount;
   }
 
+  // Handle the user's chat query
   public async handleChat(query: string): Promise<string> {
+    // Initialize chat messages with system and user instructions
     this.messages = [
       {
         role: 'system',
@@ -82,6 +87,7 @@ export class AppService {
         content: `${query}, when asked for products select one article in a single word to shop from the store you believe fits my requirements, when asked for converting currencies do not suggest a product`,
       },
     ];
+    // Define the tools for product search and currency conversion
     this.tools = [
       {
         type: 'function',
@@ -115,15 +121,20 @@ export class AppService {
       },
     ];
     try {
+      // Request a completion from OpenAI with the tools available
       const response = await this.openai.chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: this.messages,
         tools: this.tools,
         tool_choice: 'required',
       });
+
+      // Extract the function name and arguments from the tool call
       const toolCall = response.choices[0]?.message?.tool_calls?.[0];
       const functionName = toolCall?.function.name;
       const args = JSON.parse(toolCall?.function.arguments || '{}');
+
+      // Log the executed tool and its arguments
       this.messages.push({
         role: response.choices[0].message.role,
         content: `Tool excecuted was: ${functionName}, found arguments: ${toolCall?.function.arguments}`,
@@ -134,6 +145,7 @@ export class AppService {
           role: 'system',
           content: `You excecuted tool ${functionName} and found product information: ${JSON.stringify(products)}. You must choose between generating an apropiate final answer (without mentioning anything about currencies) and to excecute the convertCurrencies tool. Select between this two options acording to the user needs expressed in query: ${query}. If you are not asked to convert the price to another currency DON'T DO IT`,
         });
+        // Request a completion from OpenAI with the updated messages
         const response = await this.openai.chat.completions.create({
           model: 'gpt-3.5-turbo',
           messages: this.messages,
@@ -147,7 +159,7 @@ export class AppService {
           response.choices[0]?.message?.tool_calls?.[0].function.arguments ||
             '{}',
         );
-
+        //Makes product price conversion if considered
         if (functionNameConvert === 'convertCurrencies') {
           const convertedAmount = await this.convertCurrency(
             argsConvert.amount,
@@ -164,15 +176,18 @@ export class AppService {
               content: `Generate an apropiate answer for user query: ${query}, with the following product information: ${JSON.stringify(products)} and with the following currency information: Product price ${argsConvert.amount}, converted from ${argsConvert.from} to ${argsConvert.to}, converted price ${convertedAmount}`,
             },
           );
+          // Request a final completion with all necessary information
           const finalResponse = await this.openai.chat.completions.create({
             model: 'gpt-3.5-turbo',
             messages: this.messages,
           });
           return finalResponse.choices[0].message.content;
         } else {
+          //Returns generated message when price conversion is not required
           return response.choices[0].message.content;
         }
       } else if (functionName === 'convertCurrencies') {
+        //Makes currency conversion when asked only for that
         const convertedAmount = await this.convertCurrency(
           args.amount,
           args.from,
@@ -182,6 +197,7 @@ export class AppService {
           role: 'user',
           content: `Generate an apropiate answer for user query: ${query}, with the following currency information: Initial amount ${args.amount}, converted from ${args.from} to ${args.to}, converted amount ${convertedAmount}`,
         });
+        // Request a final completion for currency conversion
         const response = await this.openai.chat.completions.create({
           model: 'gpt-3.5-turbo',
           messages: this.messages,
@@ -196,6 +212,7 @@ export class AppService {
     }
   }
 
+  // Test the OpenAI API
   public async testAPI() {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (!apiKey) {

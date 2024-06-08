@@ -5,8 +5,8 @@ import { HealthModule } from './health.module';
 import { AppService } from './app.service';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), HealthModule],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), HealthModule], // Import ConfigModule for configuration management and HealthModule for health checks
+  controllers: [AppController], // Specify the controller that handles incoming requests
+  providers: [AppService], // Specify the service that provides business logic
 })
-export class AppModule {}
+export class AppModule {} // Main application module
