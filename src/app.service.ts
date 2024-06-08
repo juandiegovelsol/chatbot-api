@@ -27,6 +27,7 @@ export class AppService {
     this.openai = new OpenAI({
       organization: this.configService.get<string>('OPENAI_ORG_ID'),
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
+      project: this.configService.get<string>('OPENAI_PRY_ID'),
     });
     this.loadProducts();
   }
@@ -73,47 +74,83 @@ export class AppService {
   public async handleChat(query: string): Promise<string> {
     console.log('Handling chat query:', query);
     try {
-      /* const functions = [
+      /* const tools = [
         {
-          name: 'searchProducts',
-          description: 'Search for products',
-          parameters: {
-            type: 'object',
-            properties: {
-              query: { type: 'string' },
+          type: 'function',
+          function: {
+            name: 'searchProducts',
+            description: 'Search for products',
+            parameters: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+              },
+              required: ['query'],
             },
-            required: ['query'],
           },
         },
         {
-          name: 'convertCurrencies',
-          description: 'Convert currency',
-          parameters: {
-            type: 'object',
-            properties: {
-              amount: { type: 'number' },
-              from: { type: 'string' },
-              to: { type: 'string' },
+          type: 'function',
+          function: {
+            name: 'convertCurrencies',
+            description: 'Convert currency',
+            parameters: {
+              type: 'object',
+              properties: {
+                amount: { type: 'number' },
+                from: { type: 'string' },
+                to: { type: 'string' },
+              },
+              required: ['amount', 'from', 'to'],
             },
-            required: ['amount', 'from', 'to'],
           },
         },
-      ];
+      ]; */
+
       const response = await this.openai.chat.completions.create({
         model: 'gpt-3.5-turbo-0613',
         messages: [{ role: 'user', content: query }],
-        functions: functions,
-        function_call: 'auto',
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'searchProducts',
+              description: 'Search for products',
+              parameters: {
+                type: 'object',
+                properties: {
+                  query: { type: 'string' },
+                },
+                required: ['query'],
+              },
+            },
+          },
+          {
+            type: 'function',
+            function: {
+              name: 'convertCurrencies',
+              description: 'Convert currency',
+              parameters: {
+                type: 'object',
+                properties: {
+                  amount: { type: 'number' },
+                  from: { type: 'string' },
+                  to: { type: 'string' },
+                },
+                required: ['amount', 'from', 'to'],
+              },
+            },
+          },
+        ],
+        tool_choice: 'auto',
       });
-      console.log('OpenAI response:', response); */
-
-      /* const functionName = response.choices[0]?.message?.function_call?.name; 
-      const args = JSON.parse(
-        response.choices[0]?.message?.function_call?.arguments || '{}',
-      );
-      console.log('Function arguments:', args);*/
-      const functionName = 'convertCurrencies';
-      const args = { amount: 50, from: 'USD', to: 'EUR' };
+      console.log('GPT response', response);
+      const toolCall = response.choices[0]?.message?.tool_calls?.[0];
+      const functionName = toolCall?.function.name;
+      const args = JSON.parse(toolCall.function.arguments || '{}');
+      console.log('Function arguments:', args);
+      /* const functionName = 'convertCurrencies';
+      const args = { amount: 50, from: 'USD', to: 'COP' }; */
       if (functionName === 'searchProducts') {
         const products = await this.searchProducts(args.query);
         console.log('Products found:', products);
@@ -126,13 +163,48 @@ export class AppService {
         );
         console.log('Converted amount:', convertedAmount);
         return `Converted amount: ${convertedAmount} ${args.to}`;
-      } /*else {
+      } else {
         console.log('Response content:', response.choices[0].message.content);
         return response.choices[0].message.content;
-      } */
+      }
     } catch (error) {
       console.log(error);
       return error;
+    }
+  }
+
+  public async testAPI() {
+    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+    if (!apiKey) {
+      throw new Error('OpenAI API key is not set');
+    }
+
+    const data = {
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: 'Say this is a test!' }],
+      temperature: 0.7,
+    };
+
+    try {
+      const response = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        data,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+        },
+      );
+
+      console.log(response.data);
+      return response.data;
+    } catch (error) {
+      console.error(
+        'Error making OpenAI API request:',
+        error.response?.data || error.message,
+      );
+      throw error;
     }
   }
 }
