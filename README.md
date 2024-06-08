@@ -8,10 +8,6 @@ This project is a NestJS application that provides an API for handling chat-base
 - [Installation](#installation)
 - [Running the Application](#running-the-application)
 - [API Documentation](#api-documentation)
-  - [Endpoints](#endpoints)
-  - [Example Request](#example-request)
-- [Configuration](#configuration)
-- [License](#license)
 
 ## Prerequisites
 
@@ -26,8 +22,8 @@ Before you begin, ensure you have the following installed:
 1. Clone the repository:
 
    ```bash
-   git clone <repository_url>
-   cd <repository_name>
+   git clone https://github.com/juandiegovelsol/chatbot-api.git
+   cd chatbot-api
    ```
 
 2. Install the dependencies:
@@ -59,72 +55,92 @@ This will start the server on `http://localhost:3000`.
 
 ## API Documentation
 
-- Endpoints
+1. Endpoints
 
-GET /chat
-Tests the API and returns a test response
+   - GET /health
+     Tests the API health
 
-Request
+     Request
 
-```http
-GET /chat
-```
+     ```http
+     GET /health
+     ```
 
-Response
+     Response
 
-```json
-{
-  "id": "chatcmpl-123",
-  "object": "chat.completion",
-  "created": 1629471234,
-  "model": "gpt-3.5-turbo",
-  "choices": [
-    {
-      "message": {
-        "role": "assistant",
-        "content": "this is a test!"
-      },
-      "finish_reason": "stop",
-      "index": 0
-    }
-  ]
-}
-```
+     ```json
+     { "response": "API is healthy" }
+     ```
 
-POST /chat
-Handles user chat queries related to product searches and currency conversion.
+   - POST /chat
+     Handles user chat queries related to product searches and currency conversion.
+     Request
 
-Request
+     ```http
+     POST /chat
+     Content-Type: application/json
 
-```http
-POST /chat
-Content-Type: application/json
+     {
+       "query": "What is the price of a watch in Euros?"
+     }
 
-{
-  "query": "What is the price of a watch in Euros?"
-}
+     ```
 
-```
+     Response
 
-Response
+     ```json
+     {
+       "response": "The price of the Apple Watch Series 8 GPS in Euros is €429.00."
+     }
+     ```
 
-```json
-{
-  "response": "The price of the Apple Watch Series 8 GPS in Euros is €429.00."
-}
-```
+   - GET /chat
+     Tests the API and returns a test response
 
-- Example Request
+     Request
 
-To make a request to the `/chat` endpoint, you can use the following example with `curl`:
+     ```http
+     GET /chat
+     ```
 
-```bash
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-        "query": "What is the price of a watch in Euros?"
-      }'
+     Response
 
-```
+     ```json
+     {
+       "id": "chatcmpl-123",
+       "object": "chat.completion",
+       "created": 1629471234,
+       "model": "gpt-3.5-turbo",
+       "choices": [
+         {
+           "message": {
+             "role": "assistant",
+             "content": "this is a test!"
+           },
+           "finish_reason": "stop",
+           "index": 0
+         }
+       ]
+     }
+     ```
 
-## Configuration
+2. Example Request
+
+   - You can use Postman or ThunderClient VS code extension to make API request:
+
+     ```json
+     {
+       "query": "How many Canadian Dollars are 350 Euros"
+     }
+     ```
+
+   - To make a request to the `/chat` endpoint, you can also use the following example with `curl`:
+
+     ```bash
+     curl -X POST http://localhost:3000/chat \
+       -H "Content-Type: application/json" \
+       -d '{
+             "query": "What is the price of a watch in Euros?"
+           }'
+
+     ```
